@@ -31,16 +31,85 @@ function countSectionTasks(section: Section): number {
   return section.tasks?.length || 0;
 }
 
+export interface FormatOptions {
+  includeTotals?: boolean;
+  includeOverallTotal?: boolean;
+  validateBeforeFormat?: boolean;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  warnings: ValidationWarning[];
+}
+
+export interface ValidationWarning {
+  sectionName: string;
+  taskIndex?: number;
+  field: string;
+  message: string;
+}
+
 /**
- * Format a single task
+ * Validate report before formatting
+ */
+export function validateReport(report: Report): ValidationResult {
+  const warnings: ValidationWarning[] = [];
+
+  report.sections.forEach((section) => {
+    const allTasks: Array<{ task: Task; index: number; subName?: string }> = section.subSections
+      ? section.subSections.flatMap(sub => sub.tasks.map((t, i) => ({ task: t, index: i, subName: sub.name })))
+      : (section.tasks || []).map((t, i) => ({ task: t, index: i }));
+
+    allTasks.forEach(({ task, index, subName }) => {
+      const location = subName ? `${section.name} > ${subName}` : section.name;
+
+      if (!task.link || !task.link.trim()) {
+        warnings.push({
+          sectionName: location,
+          taskIndex: index,
+          field: "link",
+          message: "Missing task link",
+        });
+      }
+
+      if (!task.status) {
+        warnings.push({
+          sectionName: location,
+          taskIndex: index,
+          field: "status",
+          message: "Missing task status",
+        });
+      }
+
+      if (!task.timeSpent || !task.timeSpent.trim()) {
+        warnings.push({
+          sectionName: location,
+          taskIndex: index,
+          field: "timeSpent",
+          message: "Missing time spent",
+        });
+      }
+    });
+  });
+
+  return {
+    isValid: warnings.length === 0,
+    warnings,
+  };
+}
+
+/**
+ * Format a single task (exact import format)
  */
 function formatTask(task: Task): string {
-  const parts = [
-    `    => ${task.link}`,
-    task.status,
-    task.timeSpent || "",
-  ];
+  const parts = [`    => ${task.link}`, task.status];
 
+  // Only add time if it exists
+  if (task.timeSpent && task.timeSpent.trim()) {
+    parts.push(task.timeSpent.trim());
+  }
+
+  // Only add comment if it exists
   if (task.comment && task.comment.trim()) {
     parts.push(task.comment.trim());
   }
@@ -49,10 +118,13 @@ function formatTask(task: Task): string {
 }
 
 /**
- * Format a subsection with its tasks
+ * Format a subsection with its tasks (exact import format)
  */
-function formatSubSection(subSection: SubSection): string {
-  if (subSection.tasks.length === 0) return "";
+function formatSubSection(subSection: SubSection, includeEmpty: boolean = false): string {
+  // Skip empty subsections unless explicitly included
+  if (subSection.tasks.length === 0 && !includeEmpty) {
+    return "";
+  }
 
   let output = `    ${subSection.name}[${subSection.tasks.length}] >>>\n`;
 
@@ -66,20 +138,26 @@ function formatSubSection(subSection: SubSection): string {
 /**
  * Format a section with its tasks or subsections
  */
-function formatSection(section: Section): string {
+function formatSection(section: Section, options: FormatOptions = {}): string {
   if (!sectionHasTasks(section)) return "";
 
   const taskCount = countSectionTasks(section);
   const totalTime = calculateSectionTotalTime(section);
 
-  let output = `[${section.name}] [${taskCount}] >>> Total: ${totalTime.toFixed(
-    2
-  )} hours\n`;
+  // Format section header (exact import format)
+  let output = `[${section.name}] [${taskCount}] >>>`;
+
+  // Optionally add total time (for display, not for reimport)
+  if (options.includeTotals) {
+    output += ` Total: ${totalTime.toFixed(2)} hours`;
+  }
+
+  output += "\n";
 
   // Section with subsections
   if (section.subSections) {
     section.subSections.forEach((subSection) => {
-      output += formatSubSection(subSection);
+      output += formatSubSection(subSection, false);
     });
   }
   // Section with direct tasks
@@ -110,26 +188,39 @@ function formatNextPlan(report: Report): string {
 }
 
 /**
- * Generate complete formatted report
+ * Generate complete formatted report with options
  */
-export function generateFormattedReport(report: Report): string {
+export function generateFormattedReport(
+  report: Report,
+  options: FormatOptions = { includeTotals: true, includeOverallTotal: true }
+): string {
+  // Validate if requested
+  if (options.validateBeforeFormat) {
+    const validation = validateReport(report);
+    if (!validation.isValid) {
+      console.warn("Report has validation warnings:", validation.warnings);
+    }
+  }
+
   let output = `Today's Update || ${formatDate(report.date)}\n`;
 
   // Add all sections that have tasks
   report.sections.forEach((section) => {
-    const formatted = formatSection(section);
+    const formatted = formatSection(section, options);
     if (formatted) {
-      output += formatted + "\n";
+      output += formatted;
     }
   });
 
-  // Calculate and add overall total
-  let overallTotal = 0;
-  report.sections.forEach((section) => {
-    overallTotal += calculateSectionTotalTime(section);
-  });
+  // Calculate and add overall total (optional)
+  if (options.includeOverallTotal) {
+    let overallTotal = 0;
+    report.sections.forEach((section) => {
+      overallTotal += calculateSectionTotalTime(section);
+    });
 
-  output += `Overall Total: ${overallTotal.toFixed(2)} hours`;
+    output += `Overall Total: ${overallTotal.toFixed(2)} hours\n`;
+  }
 
   // Add next plan if exists
   const nextPlan = formatNextPlan(report);
@@ -137,7 +228,17 @@ export function generateFormattedReport(report: Report): string {
     output += nextPlan;
   }
 
-  return output;
+  return output.trim(); // Remove trailing newline
+}
+
+/**
+ * Generate report in exact import format (for round-trip)
+ */
+export function generateImportableReport(report: Report): string {
+  return generateFormattedReport(report, {
+    includeTotals: false,
+    includeOverallTotal: false,
+  });
 }
 
 /**

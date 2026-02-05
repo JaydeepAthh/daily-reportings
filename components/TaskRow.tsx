@@ -11,6 +11,7 @@ import {
 import { Trash2 } from "lucide-react";
 import { TimeInput } from "./TimeInput";
 import { StatusBadge } from "./StatusBadge";
+import { QuickTimeButtons } from "./QuickTimeButtons";
 
 interface TaskRowProps {
   task: Task;
@@ -95,6 +96,9 @@ export function TaskRow({ task, onUpdate, onDelete }: TaskRowProps) {
           <TimeInput
             value={task.timeSpent}
             onChange={(value) => onUpdate(task.id, { timeSpent: value })}
+          />
+          <QuickTimeButtons
+            onSelectTime={(time) => onUpdate(task.id, { timeSpent: time })}
           />
         </div>
 

@@ -26,8 +26,8 @@ export function ReportPreview({ report }: ReportPreviewProps) {
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="mt-6 py-4">
+      <CardHeader className="gap-0 px-4">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Eye className="h-5 w-5" />

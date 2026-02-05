@@ -42,7 +42,7 @@ export function GenerateReportButton({
     <Button
       onClick={handleGenerate}
       disabled={isGenerating}
-      className="w-full"
+      className="col-span-4"
       size="lg"
     >
       {copied ? (

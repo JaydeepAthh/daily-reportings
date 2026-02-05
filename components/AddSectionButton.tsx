@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus } from "lucide-react";
+import { Plus, PlusCircle } from "lucide-react";
 
 interface AddSectionButtonProps {
   onAddSection: (name: string, withSubSections: boolean) => void;
@@ -41,9 +41,9 @@ export function AddSectionButton({ onAddSection }: AddSectionButtonProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="w-full" size="lg">
-          <Plus className="h-5 w-5 mr-2" />
+      <DialogTrigger asChild> 
+        <Button className="w-fit bg-transparent hover:bg-transparent hover:cursor-pointer text-primary" size="lg">
+          <PlusCircle className="h-5 w-5 " />
           Add Custom Section
         </Button>
       </DialogTrigger>

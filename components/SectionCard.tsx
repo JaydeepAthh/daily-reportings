@@ -36,8 +36,8 @@ export function SectionCard({
     : section.tasks?.length || 0;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
+    <Card className="py-4 " >
+      <CardHeader className="px-4 gap-0" >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 flex-1">
             <Button
@@ -54,7 +54,7 @@ export function SectionCard({
             </Button>
             <div className="flex-1">
               <h3 className="font-semibold text-lg">{section.name}</h3>
-              <div className="flex items-center gap-3 mt-1">
+              <div className="flex items-center gap-3">
                 <span className="text-xs text-muted-foreground">
                   {taskCount} {taskCount === 1 ? "task" : "tasks"}
                 </span>
@@ -91,8 +91,9 @@ export function SectionCard({
       </CardHeader>
 
       {isExpanded && (
+        <>
+        <Separator className="mb-4" />
         <CardContent className="pt-0">
-          <Separator className="mb-4" />
 
           {/* Section with Subsections */}
           {section.subSections && (
@@ -135,6 +136,7 @@ export function SectionCard({
             </div>
           )}
         </CardContent>
+        </>
       )}
     </Card>
   );

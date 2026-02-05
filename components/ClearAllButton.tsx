@@ -27,10 +27,10 @@ export function ClearAllButton({ onClearAll }: ClearAllButtonProps) {
       <Button
         variant="destructive"
         onClick={() => setOpen(true)}
-        className="w-full"
+        className="col-span-1 h-full"
         aria-label="Clear all tasks"
       >
-        <Trash2 className="h-4 w-4 mr-2" />
+        <Trash2 className="h-5 w-5 mr-2" />
         Clear All Tasks
       </Button>
 

@@ -21,7 +21,7 @@ export function SubSectionCard({
   const subtotal = calculateSectionTotal(subSection.tasks);
 
   return (
-    <div className="space-y-3 rounded-lg border-l-4 border-l-primary/20 bg-muted/30 p-4 animate-in fade-in slide-in-from-bottom-1 duration-300">
+    <div className="space-y-3 rounded-lg bg-muted/30 p-4 animate-in fade-in slide-in-from-bottom-1 duration-300">
       {/* Subsection Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -53,7 +53,7 @@ export function SubSectionCard({
           Add Task
         </Button>
       </div>
-
+          
       {/* Tasks List */}
       {subSection.tasks.length > 0 ? (
         <div className="space-y-2" role="list" aria-label={`Tasks in ${subSection.name}`}>
