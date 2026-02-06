@@ -8,6 +8,10 @@ import {
   calculateReportTotalTime,
   countTasksByStatus,
   initializeDefaultSections,
+  addSubSectionToSection,
+  deleteSubSectionFromSection,
+  convertSectionToSubSections,
+  moveTaskBetweenSubSections,
 } from "@/lib/report-utils";
 import { formatTimeFromDecimal } from "@/lib/time-utils";
 import {
@@ -27,7 +31,10 @@ import { StorageToggle } from "@/components/StorageToggle";
 import { TemplateManager } from "@/components/TemplateManager";
 import { ExportOptions } from "@/components/ExportOptions";
 import { TimeTracker } from "@/components/TimeTracker";
-import { ImportReportDialog, ImportReportDialogRef } from "@/components/ImportReportDialog";
+import {
+  ImportReportDialog,
+  ImportReportDialogRef,
+} from "@/components/ImportReportDialog";
 import { ValidationWarnings } from "@/components/ValidationWarnings";
 import { CompareView } from "@/components/CompareView";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,7 +47,15 @@ import {
   usePersistenceToggle,
   useHasStoredData,
 } from "@/hooks/useLocalStorage";
-import { BarChart3, Keyboard, RotateCcw, GitCompare, AlertTriangle, Calendar, Calendar1 } from "lucide-react";
+import {
+  BarChart3,
+  Keyboard,
+  RotateCcw,
+  GitCompare,
+  AlertTriangle,
+  Calendar,
+  Calendar1,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Home() {
@@ -137,6 +152,16 @@ export default function Home() {
       sections: prev.sections.map((section) => {
         if (section.id !== sectionId) return section;
 
+        // If status is being changed and section has subsections, move the task
+        if (updates.status && subSectionId && section.subSections) {
+          return moveTaskBetweenSubSections(
+            section,
+            taskId,
+            updates.status,
+            subSectionId,
+          );
+        }
+
         // Update in subsection
         if (subSectionId && section.subSections) {
           return {
@@ -144,11 +169,11 @@ export default function Home() {
             subSections: section.subSections.map((subSection) =>
               subSection.id === subSectionId
                 ? {
-                  ...subSection,
-                  tasks: subSection.tasks.map((task) =>
-                    task.id === taskId ? { ...task, ...updates } : task,
-                  ),
-                }
+                    ...subSection,
+                    tasks: subSection.tasks.map((task) =>
+                      task.id === taskId ? { ...task, ...updates } : task,
+                    ),
+                  }
                 : subSection,
             ),
           };
@@ -187,11 +212,11 @@ export default function Home() {
             subSections: section.subSections.map((subSection) =>
               subSection.id === subSectionId
                 ? {
-                  ...subSection,
-                  tasks: subSection.tasks.filter(
-                    (task) => task.id !== taskId,
-                  ),
-                }
+                    ...subSection,
+                    tasks: subSection.tasks.filter(
+                      (task) => task.id !== taskId,
+                    ),
+                  }
                 : subSection,
             ),
           };
@@ -218,33 +243,33 @@ export default function Home() {
       isFixed: false,
       ...(withSubSections
         ? {
-          subSections: [
-            {
-              id: crypto.randomUUID(),
-              name: "DONE",
-              tasks: [],
-              isFixed: false,
-            },
-            {
-              id: crypto.randomUUID(),
-              name: "MR RAISED",
-              tasks: [],
-              isFixed: false,
-            },
-            {
-              id: crypto.randomUUID(),
-              name: "IN PROGRESS",
-              tasks: [],
-              isFixed: false,
-            },
-            {
-              id: crypto.randomUUID(),
-              name: "D&T",
-              tasks: [],
-              isFixed: false,
-            },
-          ],
-        }
+            subSections: [
+              {
+                id: crypto.randomUUID(),
+                name: "DONE",
+                tasks: [],
+                isFixed: false,
+              },
+              {
+                id: crypto.randomUUID(),
+                name: "MR RAISED",
+                tasks: [],
+                isFixed: false,
+              },
+              {
+                id: crypto.randomUUID(),
+                name: "IN PROGRESS",
+                tasks: [],
+                isFixed: false,
+              },
+              {
+                id: crypto.randomUUID(),
+                name: "D&T",
+                tasks: [],
+                isFixed: false,
+              },
+            ],
+          }
         : { tasks: [] }),
     };
 
@@ -259,6 +284,42 @@ export default function Home() {
     setReport((prev) => ({
       ...prev,
       sections: prev.sections.filter((section) => section.id !== sectionId),
+    }));
+  };
+
+  // Add subsection to a section
+  const handleAddSubSection = (sectionId: string, subSectionName: string) => {
+    setReport((prev) => ({
+      ...prev,
+      sections: prev.sections.map((section) =>
+        section.id === sectionId
+          ? addSubSectionToSection(section, subSectionName)
+          : section,
+      ),
+    }));
+  };
+
+  // Delete subsection from a section
+  const handleDeleteSubSection = (sectionId: string, subSectionId: string) => {
+    setReport((prev) => ({
+      ...prev,
+      sections: prev.sections.map((section) =>
+        section.id === sectionId
+          ? deleteSubSectionFromSection(section, subSectionId)
+          : section,
+      ),
+    }));
+  };
+
+  // Convert section to have subsections
+  const handleConvertToSubSections = (sectionId: string) => {
+    setReport((prev) => ({
+      ...prev,
+      sections: prev.sections.map((section) =>
+        section.id === sectionId
+          ? convertSectionToSubSections(section)
+          : section,
+      ),
     }));
   };
 
@@ -294,7 +355,7 @@ export default function Home() {
     sections: Section[],
     nextPlanDate: string,
     nextPlanTasks: Task[],
-    originalText?: string
+    originalText?: string,
   ) => {
     const newReport = {
       date,
@@ -344,10 +405,18 @@ export default function Home() {
   const { toasts, showToast, removeToast } = useToast();
 
   // Import history
-  const { lastImport, saveImport, clearHistory, hasHistory, getTimeSinceImport } = useImportHistory();
+  const {
+    lastImport,
+    saveImport,
+    clearHistory,
+    hasHistory,
+    getTimeSinceImport,
+  } = useImportHistory();
 
   // Validation warnings
-  const [validationWarnings, setValidationWarnings] = useState<ValidationWarning[]>([]);
+  const [validationWarnings, setValidationWarnings] = useState<
+    ValidationWarning[]
+  >([]);
   const [showValidationWarnings, setShowValidationWarnings] = useState(true);
 
   // Compare view
@@ -390,7 +459,7 @@ export default function Home() {
         lastImport.report.sections,
         lastImport.report.nextPlanDate,
         lastImport.report.nextPlanTasks,
-        lastImport.originalText
+        lastImport.originalText,
       );
 
       showToast({
@@ -555,7 +624,10 @@ export default function Home() {
               {/* Date Selectors */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="uppercase text-muted-foreground flex items-center justify-start gap-2" ><Calendar size={14} />Report Dates</CardTitle>
+                  <CardTitle className="uppercase text-muted-foreground flex items-center justify-start gap-2">
+                    <Calendar size={14} />
+                    Report Dates
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <DateSelector
@@ -569,8 +641,10 @@ export default function Home() {
 
               {/* Sections */}
               <div className="space-y-4">
-                <div className="flex items-center justify-between" >
-                  <p className="capitalize font-semibold text-xl" >Work log categories</p>
+                <div className="flex items-center justify-between">
+                  <p className="capitalize font-semibold text-xl">
+                    Work log categories
+                  </p>
                   {/* Add Section Button */}
                   <AddSectionButton onAddSection={handleAddSection} />
                 </div>
@@ -584,6 +658,9 @@ export default function Home() {
                     onDeleteSection={
                       !section.isFixed ? handleDeleteSection : undefined
                     }
+                    onAddSubSection={handleAddSubSection}
+                    onDeleteSubSection={handleDeleteSubSection}
+                    onConvertToSubSections={handleConvertToSubSections}
                   />
                 ))}
               </div>
@@ -635,14 +712,18 @@ export default function Home() {
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">In Progress</span>
+                        <span className="text-muted-foreground">
+                          In Progress
+                        </span>
                         <span className="font-medium">
                           {statusCounts["IN PROGRESS"]}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">D&T</span>
-                        <span className="font-medium">{statusCounts["D&T"]}</span>
+                        <span className="font-medium">
+                          {statusCounts["D&T"]}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Completed</span>
@@ -651,7 +732,9 @@ export default function Home() {
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Dev Replied</span>
+                        <span className="text-muted-foreground">
+                          Dev Replied
+                        </span>
                         <span className="font-medium">
                           {statusCounts["DEV REPLIED"]}
                         </span>
@@ -688,9 +771,7 @@ export default function Home() {
               </CardContent>
             </Card> */}
 
-              <Card className="p-4 rounded-2xl border border-border-muted space-y-4" >
-
-
+              <Card className="p-4 rounded-2xl border border-border-muted space-y-4">
                 {/* Templates */}
                 <TemplateManager
                   currentSections={report.sections}

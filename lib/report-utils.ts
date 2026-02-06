@@ -1,4 +1,10 @@
-import { Section, SubSection, Report, DEFAULT_SECTIONS, Task } from "@/types/report";
+import {
+  Section,
+  SubSection,
+  Report,
+  DEFAULT_SECTIONS,
+  Task,
+} from "@/types/report";
 import { calculateSectionTotal } from "./time-utils";
 
 /**
@@ -27,7 +33,9 @@ export function initializeDefaultSections(): Section[] {
 /**
  * Create an empty report with default structure
  */
-export function createEmptyReport(date: string = new Date().toISOString().split("T")[0]): Report {
+export function createEmptyReport(
+  date: string = new Date().toISOString().split("T")[0],
+): Report {
   return {
     date,
     sections: initializeDefaultSections(),
@@ -141,7 +149,7 @@ export function countTasksByStatus(report: Report): Record<string, number> {
 export function addTaskToSection(
   section: Section,
   task: Task,
-  subSectionId?: string
+  subSectionId?: string,
 ): Section {
   if (subSectionId && section.subSections) {
     return {
@@ -149,7 +157,7 @@ export function addTaskToSection(
       subSections: section.subSections.map((subSection) =>
         subSection.id === subSectionId
           ? { ...subSection, tasks: [...subSection.tasks, task] }
-          : subSection
+          : subSection,
       ),
     };
   }
@@ -169,7 +177,7 @@ export function addTaskToSection(
  */
 export function removeTaskFromSection(
   section: Section,
-  taskId: string
+  taskId: string,
 ): Section {
   if (section.subSections) {
     return {
@@ -197,7 +205,7 @@ export function removeTaskFromSection(
 export function updateTaskInSection(
   section: Section,
   taskId: string,
-  updates: Partial<Task>
+  updates: Partial<Task>,
 ): Section {
   if (section.subSections) {
     return {
@@ -205,7 +213,7 @@ export function updateTaskInSection(
       subSections: section.subSections.map((subSection) => ({
         ...subSection,
         tasks: subSection.tasks.map((task) =>
-          task.id === taskId ? { ...task, ...updates } : task
+          task.id === taskId ? { ...task, ...updates } : task,
         ),
       })),
     };
@@ -215,10 +223,163 @@ export function updateTaskInSection(
     return {
       ...section,
       tasks: section.tasks.map((task) =>
-        task.id === taskId ? { ...task, ...updates } : task
+        task.id === taskId ? { ...task, ...updates } : task,
       ),
     };
   }
 
   return section;
+}
+
+/**
+ * Add a subsection to a section
+ */
+export function addSubSectionToSection(
+  section: Section,
+  subSectionName: string,
+): Section {
+  if (!section.subSections) {
+    return section;
+  }
+
+  const newSubSection: SubSection = {
+    id: generateId(),
+    name: subSectionName,
+    tasks: [],
+    isFixed: false,
+  };
+
+  return {
+    ...section,
+    subSections: [...section.subSections, newSubSection],
+  };
+}
+
+/**
+ * Delete a subsection from a section
+ */
+export function deleteSubSectionFromSection(
+  section: Section,
+  subSectionId: string,
+): Section {
+  if (!section.subSections) {
+    return section;
+  }
+
+  return {
+    ...section,
+    subSections: section.subSections.filter((sub) => sub.id !== subSectionId),
+  };
+}
+
+/**
+ * Convert a section with direct tasks to have subsections
+ */
+export function convertSectionToSubSections(section: Section): Section {
+  if (section.subSections) {
+    return section; // Already has subsections
+  }
+
+  return {
+    ...section,
+    subSections: [
+      {
+        id: generateId(),
+        name: "DONE",
+        tasks: [],
+        isFixed: false,
+      },
+      {
+        id: generateId(),
+        name: "MR RAISED",
+        tasks: [],
+        isFixed: false,
+      },
+      {
+        id: generateId(),
+        name: "IN PROGRESS",
+        tasks: section.tasks || [], // Move existing tasks to IN PROGRESS
+        isFixed: false,
+      },
+      {
+        id: generateId(),
+        name: "D&T",
+        tasks: [],
+        isFixed: false,
+      },
+    ],
+    tasks: undefined,
+  };
+}
+
+/**
+ * Move a task between subsections based on status change
+ */
+export function moveTaskBetweenSubSections(
+  section: Section,
+  taskId: string,
+  newStatus: string,
+  oldSubSectionId: string,
+): Section {
+  if (!section.subSections) {
+    return section;
+  }
+
+  // Find the task
+  let taskToMove: Task | undefined;
+  let sourceSubSection: SubSection | undefined;
+
+  for (const subSection of section.subSections) {
+    const task = subSection.tasks.find((t) => t.id === taskId);
+    if (task) {
+      taskToMove = task;
+      sourceSubSection = subSection;
+      break;
+    }
+  }
+
+  if (!taskToMove || !sourceSubSection) {
+    return section;
+  }
+
+  // Find target subsection by name matching the new status
+  const targetSubSection = section.subSections.find(
+    (sub) => sub.name.toUpperCase() === newStatus.toUpperCase(),
+  );
+
+  if (!targetSubSection || targetSubSection.id === sourceSubSection.id) {
+    // No matching subsection or same subsection, just update the task
+    return {
+      ...section,
+      subSections: section.subSections.map((subSection) => ({
+        ...subSection,
+        tasks: subSection.tasks.map((task) =>
+          task.id === taskId ? { ...task, status: newStatus as any } : task,
+        ),
+      })),
+    };
+  }
+
+  // Move task to target subsection
+  const updatedTask = { ...taskToMove, status: newStatus as any };
+
+  return {
+    ...section,
+    subSections: section.subSections.map((subSection) => {
+      if (subSection.id === sourceSubSection.id) {
+        // Remove from source
+        return {
+          ...subSection,
+          tasks: subSection.tasks.filter((t) => t.id !== taskId),
+        };
+      } else if (subSection.id === targetSubSection.id) {
+        // Add to target
+        return {
+          ...subSection,
+          tasks: [...subSection.tasks, updatedTask],
+        };
+      }
+      return subSection;
+    }),
+  };
 }

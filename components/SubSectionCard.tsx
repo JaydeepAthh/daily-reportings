@@ -1,15 +1,20 @@
 import { SubSection, Task } from "@/types/report";
 import { Button } from "@/components/ui/button";
 import { TaskRow } from "./TaskRow";
-import { Plus, Package } from "lucide-react";
+import { Plus, Package, Trash2 } from "lucide-react";
 import { calculateSectionTotal } from "@/lib/time-utils";
 import { Separator } from "@/components/ui/separator";
 
 interface SubSectionCardProps {
   subSection: SubSection;
   onAddTask: (subSectionId: string) => void;
-  onUpdateTask: (subSectionId: string, taskId: string, updates: Partial<Task>) => void;
+  onUpdateTask: (
+    subSectionId: string,
+    taskId: string,
+    updates: Partial<Task>,
+  ) => void;
   onDeleteTask: (subSectionId: string, taskId: string) => void;
+  onDeleteSubSection?: () => void;
 }
 
 export function SubSectionCard({
@@ -17,6 +22,7 @@ export function SubSectionCard({
   onAddTask,
   onUpdateTask,
   onDeleteTask,
+  onDeleteSubSection,
 }: SubSectionCardProps) {
   const subtotal = calculateSectionTotal(subSection.tasks);
 
@@ -31,7 +37,8 @@ export function SubSectionCard({
             role="status"
             aria-label={`${subSection.tasks.length} tasks`}
           >
-            {subSection.tasks.length} {subSection.tasks.length === 1 ? "task" : "tasks"}
+            {subSection.tasks.length}{" "}
+            {subSection.tasks.length === 1 ? "task" : "tasks"}
           </span>
           {subSection.tasks.length > 0 && (
             <span
@@ -42,21 +49,37 @@ export function SubSectionCard({
             </span>
           )}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onAddTask(subSection.id)}
-          className="transition-all hover:scale-105"
-          aria-label={`Add task to ${subSection.name}`}
-        >
-          <Plus className="h-4 w-4 mr-1" />
-          Add Task
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onAddTask(subSection.id)}
+            className="transition-all hover:scale-105"
+            aria-label={`Add task to ${subSection.name}`}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Add Task
+          </Button>
+          {onDeleteSubSection && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={onDeleteSubSection}
+              aria-label={`Delete ${subSection.name} subsection`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
-          
+
       {/* Tasks List */}
       {subSection.tasks.length > 0 ? (
-        <div className="space-y-2" role="list" aria-label={`Tasks in ${subSection.name}`}>
+        <div
+          className="space-y-2"
+          role="list"
+          aria-label={`Tasks in ${subSection.name}`}
+        >
           {subSection.tasks.map((task, index) => (
             <div
               key={task.id}
