@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Task, TaskStatus } from "@/types/report";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,20 @@ const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
   { value: "DEV REPLIED", label: "Dev Replied" },
 ];
 
+function extractClickUpId(link: string): string {
+  const match = link.match(/\/t\/([a-z0-9]+)$/i);
+  return match ? match[1] : link;
+}
+
 export function TaskRow({ task, onUpdate, onDelete }: TaskRowProps) {
+  const [linkFocused, setLinkFocused] = useState(false);
+
+  const displayLink = linkFocused
+    ? task.link
+    : task.link
+      ? extractClickUpId(task.link)
+      : "";
+
   return (
     <div
       className="grid gap-3 rounded-lg border p-3 bg-card animate-in fade-in slide-in-from-bottom-2 duration-300"
@@ -47,8 +61,10 @@ export function TaskRow({ task, onUpdate, onDelete }: TaskRowProps) {
           <Input
             id={`link-${task.id}`}
             placeholder="https://..."
-            value={task.link}
+            value={displayLink}
             onChange={(e) => onUpdate(task.id, { link: e.target.value })}
+            onFocus={() => setLinkFocused(true)}
+            onBlur={() => setLinkFocused(false)}
             className="h-9"
             aria-label="Task link"
           />

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Task, TaskStatus } from "@/types/report";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,11 +22,23 @@ interface ThemedTaskRowProps {
 
 const STATUS_OPTIONS: { value: TaskStatus; label: string; color: string }[] = [
   { value: "DONE", label: "Done", color: "bg-status-done text-white" },
-  { value: "IN PROGRESS", label: "In Progress", color: "bg-status-progress text-white" },
+  {
+    value: "IN PROGRESS",
+    label: "In Progress",
+    color: "bg-status-progress text-white",
+  },
   { value: "MR RAISED", label: "MR Raised", color: "bg-status-mr text-white" },
   { value: "D&T", label: "D&T", color: "bg-status-dt text-white" },
-  { value: "COMPLETED", label: "Completed", color: "bg-status-completed text-white" },
-  { value: "DEV REPLIED", label: "Dev Replied", color: "bg-status-replied text-white" },
+  {
+    value: "COMPLETED",
+    label: "Completed",
+    color: "bg-status-completed text-white",
+  },
+  {
+    value: "DEV REPLIED",
+    label: "Dev Replied",
+    color: "bg-status-replied text-white",
+  },
 ];
 
 const QUICK_TIMES = [
@@ -42,7 +55,23 @@ function getStatusColor(status: TaskStatus): string {
   return option?.color || "bg-input-bg text-text-primary";
 }
 
-export function ThemedTaskRow({ task, onUpdate, onDelete }: ThemedTaskRowProps) {
+function extractClickUpId(link: string): string {
+  const match = link.match(/\/t\/([a-z0-9]+)$/i);
+  return match ? match[1] : link;
+}
+
+export function ThemedTaskRow({
+  task,
+  onUpdate,
+  onDelete,
+}: ThemedTaskRowProps) {
+  const [linkFocused, setLinkFocused] = useState(false);
+
+  const displayLink = linkFocused
+    ? task.link
+    : task.link
+      ? extractClickUpId(task.link)
+      : "";
   const handleQuickTime = (time: string) => {
     onUpdate(task.id, { timeSpent: time });
   };
@@ -58,8 +87,10 @@ export function ThemedTaskRow({ task, onUpdate, onDelete }: ThemedTaskRowProps) 
           </label>
           <Input
             placeholder="https://..."
-            value={task.link}
+            value={displayLink}
             onChange={(e) => onUpdate(task.id, { link: e.target.value })}
+            onFocus={() => setLinkFocused(true)}
+            onBlur={() => setLinkFocused(false)}
             className="h-10 bg-input-bg border-border text-text-primary placeholder:text-text-muted"
           />
         </div>
