@@ -511,6 +511,33 @@ export default function Home() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [handleGenerateReport, handleOpenImport]);
 
+  // Collapsed columns state (persisted in localStorage)
+  const [collapsedColumns, setCollapsedColumns] = useLocalStorage<string[]>({
+    key: "kanban-collapsed-columns",
+    defaultValue: [],
+    enabled: true,
+  });
+
+  const collapsedSet = useMemo(
+    () => new Set(collapsedColumns),
+    [collapsedColumns],
+  );
+
+  const handleToggleCollapse = useCallback(
+    (sectionId: string) => {
+      setCollapsedColumns((prev) => {
+        const set = new Set(prev);
+        if (set.has(sectionId)) {
+          set.delete(sectionId);
+        } else {
+          set.add(sectionId);
+        }
+        return Array.from(set);
+      });
+    },
+    [setCollapsedColumns],
+  );
+
   // Duplicate bug detection
   const duplicateBugIds = useMemo(() => getDuplicateBugIds(report), [report]);
 
@@ -787,6 +814,8 @@ export default function Home() {
                   key={section.id}
                   section={section}
                   duplicateBugIds={duplicateBugIds}
+                  collapsed={collapsedSet.has(section.id)}
+                  onToggleCollapse={handleToggleCollapse}
                   onAddTask={handleAddTask}
                   onUpdateTask={handleUpdateTask}
                   onDeleteTask={handleDeleteTask}

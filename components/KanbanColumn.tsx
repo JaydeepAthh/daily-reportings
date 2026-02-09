@@ -4,7 +4,15 @@ import { TaskCard } from "./TaskCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, FolderPlus, LayoutGrid, Package } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  FolderPlus,
+  LayoutGrid,
+  Package,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
 import { calculateSectionTotalTime } from "@/lib/report-utils";
 import { calculateSectionTotal } from "@/lib/time-utils";
 import { useDroppable } from "@dnd-kit/core";
@@ -21,6 +29,8 @@ import {
 interface KanbanColumnProps {
   section: Section;
   duplicateBugIds?: Set<string>;
+  collapsed?: boolean;
+  onToggleCollapse?: (sectionId: string) => void;
   onAddTask: (sectionId: string, subSectionId?: string) => void;
   onUpdateTask: (
     sectionId: string,
@@ -65,6 +75,8 @@ function DroppableArea({
 export function KanbanColumn({
   section,
   duplicateBugIds,
+  collapsed = false,
+  onToggleCollapse,
   onAddTask,
   onUpdateTask,
   onDeleteTask,
@@ -89,17 +101,84 @@ export function KanbanColumn({
     }
   };
 
+  // Collapsed view — narrow bar with rotated title, still a valid drop target
+  if (collapsed) {
+    return (
+      <DroppableArea
+        id={
+          section.subSections
+            ? `droppable-${section.id}-${section.subSections[0]?.id}`
+            : `droppable-${section.id}`
+        }
+        data={
+          section.subSections
+            ? {
+                sectionId: section.id,
+                subSectionId: section.subSections[0]?.id,
+                subSectionName: section.subSections[0]?.name,
+              }
+            : { sectionId: section.id }
+        }
+        className="flex flex-col items-center w-[44px] shrink-0 rounded-xl border bg-muted/30 overflow-hidden cursor-pointer hover:bg-muted/50 transition-colors group"
+      >
+        <div
+          className="flex flex-col items-center h-full py-3 gap-3"
+          onClick={() => onToggleCollapse?.(section.id)}
+        >
+          {/* Expand icon */}
+          <ChevronsRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
+
+          {/* Task count badge */}
+          {taskCount > 0 && (
+            <span className="text-[10px] font-semibold bg-primary/15 text-primary rounded-full w-6 h-6 flex items-center justify-center shrink-0">
+              {taskCount}
+            </span>
+          )}
+
+          {/* Rotated section name */}
+          <div className="flex-1 flex items-start justify-center min-h-0">
+            <span
+              className="text-sm font-semibold text-muted-foreground group-hover:text-foreground transition-colors whitespace-nowrap"
+              style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
+            >
+              {section.name}
+            </span>
+          </div>
+
+          {/* Total time (if any) */}
+          {taskCount > 0 && (
+            <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+              {totalTime.toFixed(1)}h
+            </span>
+          )}
+        </div>
+      </DroppableArea>
+    );
+  }
+
   return (
     <div className="flex flex-col w-[300px] shrink-0 rounded-xl border bg-muted/30 overflow-hidden">
       {/* Column Header */}
       <div className="p-3 border-b bg-card space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <h3
-            className="font-semibold text-sm truncate flex-1"
-            title={section.name}
-          >
-            {section.name}
-          </h3>
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            {onToggleCollapse && (
+              <button
+                onClick={() => onToggleCollapse(section.id)}
+                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+                aria-label="Collapse section"
+                title="Collapse"
+              >
+                <ChevronsLeft className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <h3
+              className="font-semibold text-sm truncate flex-1"
+              title={section.name}
+            >
+              {section.name}
+            </h3>
+          </div>
           <div className="flex items-center gap-1 shrink-0">
             {!section.isFixed && onDeleteSection && (
               <button
