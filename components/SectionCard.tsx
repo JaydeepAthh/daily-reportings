@@ -25,9 +25,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useDroppable } from "@dnd-kit/core";
 
 interface SectionCardProps {
   section: Section;
+  duplicateBugIds?: Set<string>;
   onAddTask: (sectionId: string, subSectionId?: string) => void;
   onUpdateTask: (
     sectionId: string,
@@ -46,8 +48,31 @@ interface SectionCardProps {
   onConvertToSubSections?: (sectionId: string) => void;
 }
 
+function DroppableTaskArea({
+  sectionId,
+  children,
+}: {
+  sectionId: string;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `droppable-${sectionId}`,
+    data: { sectionId },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`space-y-2 rounded-lg p-1 transition-colors ${isOver ? "ring-2 ring-primary bg-primary/5" : ""}`}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function SectionCard({
   section,
+  duplicateBugIds,
   onAddTask,
   onUpdateTask,
   onDeleteTask,
@@ -199,6 +224,8 @@ export function SectionCard({
                   <SubSectionCard
                     key={subSection.id}
                     subSection={subSection}
+                    sectionId={section.id}
+                    duplicateBugIds={duplicateBugIds}
                     onAddTask={(subSectionId) =>
                       onAddTask(section.id, subSectionId)
                     }
@@ -220,12 +247,14 @@ export function SectionCard({
 
             {/* Section without Subsections */}
             {section.tasks && (
-              <div className="space-y-2">
+              <DroppableTaskArea sectionId={section.id}>
                 {section.tasks.length > 0 ? (
                   section.tasks.map((task) => (
                     <TaskRow
                       key={task.id}
                       task={task}
+                      sectionId={section.id}
+                      duplicateBugIds={duplicateBugIds}
                       onUpdate={(taskId, updates) =>
                         onUpdateTask(section.id, taskId, updates)
                       }
@@ -237,7 +266,7 @@ export function SectionCard({
                     No tasks yet. Click &quot;Add Task&quot; to get started.
                   </p>
                 )}
-              </div>
+              </DroppableTaskArea>
             )}
           </CardContent>
         </>

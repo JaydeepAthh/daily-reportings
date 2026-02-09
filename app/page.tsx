@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
-import { Report, Task, Section, SubSection } from "@/types/report";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { Report, Task, TaskStatus, Section, SubSection } from "@/types/report";
 import {
   createEmptyReport,
   createEmptyTask,
@@ -12,6 +12,7 @@ import {
   deleteSubSectionFromSection,
   convertSectionToSubSections,
   moveTaskBetweenSubSections,
+  getDuplicateBugIds,
 } from "@/lib/report-utils";
 import { formatTimeFromDecimal } from "@/lib/time-utils";
 import {
@@ -57,6 +58,15 @@ import {
   Calendar1,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DndContext,
+  DragOverlay,
+  DragStartEvent,
+  DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 
 export default function Home() {
   // Persistence toggle
@@ -511,6 +521,114 @@ export default function Home() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [handleGenerateReport, handleOpenImport]);
 
+  // Duplicate bug detection
+  const duplicateBugIds = useMemo(() => getDuplicateBugIds(report), [report]);
+
+  // Drag and drop
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const { task } = event.active.data.current as { task: Task };
+    setActiveTask(task);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveTask(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const source = active.data.current as {
+      task: Task;
+      sectionId: string;
+      subSectionId?: string;
+    };
+    const dest = over.data.current as {
+      sectionId: string;
+      subSectionId?: string;
+      subSectionName?: string;
+    };
+
+    // Don't move if dropped in the same location
+    if (
+      source.sectionId === dest.sectionId &&
+      source.subSectionId === dest.subSectionId
+    ) {
+      return;
+    }
+
+    const taskToMove = { ...source.task };
+
+    // If dropping into a named subsection that matches a status, update the status
+    if (dest.subSectionName) {
+      const matchingStatus = (
+        [
+          "DONE",
+          "MR RAISED",
+          "IN PROGRESS",
+          "D&T",
+          "COMPLETED",
+          "DEV REPLIED",
+        ] as TaskStatus[]
+      ).find((s) => s.toUpperCase() === dest.subSectionName!.toUpperCase());
+      if (matchingStatus) {
+        taskToMove.status = matchingStatus;
+      }
+    }
+
+    setReport((prev) => ({
+      ...prev,
+      sections: prev.sections.map((section) => {
+        let updated = section;
+
+        // Remove from source
+        if (section.id === source.sectionId) {
+          if (source.subSectionId && updated.subSections) {
+            updated = {
+              ...updated,
+              subSections: updated.subSections.map((sub) =>
+                sub.id === source.subSectionId
+                  ? {
+                      ...sub,
+                      tasks: sub.tasks.filter((t) => t.id !== taskToMove.id),
+                    }
+                  : sub,
+              ),
+            };
+          } else if (updated.tasks) {
+            updated = {
+              ...updated,
+              tasks: updated.tasks.filter((t) => t.id !== taskToMove.id),
+            };
+          }
+        }
+
+        // Add to destination
+        if (section.id === dest.sectionId) {
+          if (dest.subSectionId && updated.subSections) {
+            updated = {
+              ...updated,
+              subSections: updated.subSections.map((sub) =>
+                sub.id === dest.subSectionId
+                  ? { ...sub, tasks: [...sub.tasks, taskToMove] }
+                  : sub,
+              ),
+            };
+          } else if (updated.tasks) {
+            updated = {
+              ...updated,
+              tasks: [...updated.tasks, taskToMove],
+            };
+          }
+        }
+
+        return updated;
+      }),
+    }));
+  };
+
   const totalTime = calculateReportTotalTime(report);
   const statusCounts = countTasksByStatus(report);
 
@@ -640,30 +758,50 @@ export default function Home() {
               </Card>
 
               {/* Sections */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="capitalize font-semibold text-xl">
-                    Work log categories
-                  </p>
-                  {/* Add Section Button */}
-                  <AddSectionButton onAddSection={handleAddSection} />
+              <DndContext
+                sensors={sensors}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+              >
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="capitalize font-semibold text-xl">
+                      Work log categories
+                    </p>
+                    {/* Add Section Button */}
+                    <AddSectionButton onAddSection={handleAddSection} />
+                  </div>
+                  {report.sections.map((section) => (
+                    <SectionCard
+                      key={section.id}
+                      section={section}
+                      duplicateBugIds={duplicateBugIds}
+                      onAddTask={handleAddTask}
+                      onUpdateTask={handleUpdateTask}
+                      onDeleteTask={handleDeleteTask}
+                      onDeleteSection={
+                        !section.isFixed ? handleDeleteSection : undefined
+                      }
+                      onAddSubSection={handleAddSubSection}
+                      onDeleteSubSection={handleDeleteSubSection}
+                      onConvertToSubSections={handleConvertToSubSections}
+                    />
+                  ))}
                 </div>
-                {report.sections.map((section) => (
-                  <SectionCard
-                    key={section.id}
-                    section={section}
-                    onAddTask={handleAddTask}
-                    onUpdateTask={handleUpdateTask}
-                    onDeleteTask={handleDeleteTask}
-                    onDeleteSection={
-                      !section.isFixed ? handleDeleteSection : undefined
-                    }
-                    onAddSubSection={handleAddSubSection}
-                    onDeleteSubSection={handleDeleteSubSection}
-                    onConvertToSubSections={handleConvertToSubSections}
-                  />
-                ))}
-              </div>
+                <DragOverlay>
+                  {activeTask ? (
+                    <div className="rounded-lg border-2 border-primary bg-card p-3 shadow-xl opacity-90 max-w-md">
+                      <p className="text-sm font-medium truncate">
+                        {activeTask.link || "No link"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {activeTask.status} &middot;{" "}
+                        {activeTask.timeSpent || "No time"}
+                      </p>
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
               {/* Actions */}
               <Card className="bg-transparent border-none p-0">
                 <CardContent className="grid grid-cols-5 p-0 gap-2">

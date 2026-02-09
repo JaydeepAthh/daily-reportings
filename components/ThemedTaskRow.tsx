@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Task, TaskStatus } from "@/types/report";
+import { extractClickUpId } from "@/lib/report-utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,11 +54,6 @@ const QUICK_TIMES = [
 function getStatusColor(status: TaskStatus): string {
   const option = STATUS_OPTIONS.find((opt) => opt.value === status);
   return option?.color || "bg-input-bg text-text-primary";
-}
-
-function extractClickUpId(link: string): string {
-  const match = link.match(/\/t\/([a-z0-9]+)$/i);
-  return match ? match[1] : link;
 }
 
 export function ThemedTaskRow({

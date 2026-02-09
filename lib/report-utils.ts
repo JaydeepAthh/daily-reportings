@@ -313,6 +313,46 @@ export function convertSectionToSubSections(section: Section): Section {
 }
 
 /**
+ * Extract the ClickUp bug ID from a link (last segment after /t/)
+ */
+export function extractClickUpId(link: string): string {
+  const match = link.match(/\/t\/([a-z0-9]+)$/i);
+  return match ? match[1] : link;
+}
+
+/**
+ * Get a Set of bug IDs that appear more than once across the entire report
+ */
+export function getDuplicateBugIds(report: Report): Set<string> {
+  const seen = new Map<string, number>();
+
+  const countLink = (link: string) => {
+    if (!link || !link.trim()) return;
+    const id = extractClickUpId(link);
+    if (!id) return;
+    seen.set(id, (seen.get(id) || 0) + 1);
+  };
+
+  for (const section of report.sections) {
+    if (section.tasks) {
+      section.tasks.forEach((t) => countLink(t.link));
+    }
+    if (section.subSections) {
+      section.subSections.forEach((sub) =>
+        sub.tasks.forEach((t) => countLink(t.link)),
+      );
+    }
+  }
+  report.nextPlanTasks.forEach((t) => countLink(t.link));
+
+  const duplicates = new Set<string>();
+  for (const [id, count] of seen) {
+    if (count > 1) duplicates.add(id);
+  }
+  return duplicates;
+}
+
+/**
  * Move a task between subsections based on status change
  */
 export function moveTaskBetweenSubSections(

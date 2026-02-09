@@ -3,10 +3,12 @@ import { Button } from "@/components/ui/button";
 import { TaskRow } from "./TaskRow";
 import { Plus, Package, Trash2 } from "lucide-react";
 import { calculateSectionTotal } from "@/lib/time-utils";
-import { Separator } from "@/components/ui/separator";
+import { useDroppable } from "@dnd-kit/core";
 
 interface SubSectionCardProps {
   subSection: SubSection;
+  sectionId: string;
+  duplicateBugIds?: Set<string>;
   onAddTask: (subSectionId: string) => void;
   onUpdateTask: (
     subSectionId: string,
@@ -19,6 +21,8 @@ interface SubSectionCardProps {
 
 export function SubSectionCard({
   subSection,
+  sectionId,
+  duplicateBugIds,
   onAddTask,
   onUpdateTask,
   onDeleteTask,
@@ -26,8 +30,22 @@ export function SubSectionCard({
 }: SubSectionCardProps) {
   const subtotal = calculateSectionTotal(subSection.tasks);
 
+  const { setNodeRef, isOver } = useDroppable({
+    id: `droppable-${sectionId}-${subSection.id}`,
+    data: {
+      sectionId,
+      subSectionId: subSection.id,
+      subSectionName: subSection.name,
+    },
+  });
+
   return (
-    <div className="space-y-3 rounded-lg bg-muted/30 p-4 animate-in fade-in slide-in-from-bottom-1 duration-300">
+    <div
+      ref={setNodeRef}
+      className={`space-y-3 rounded-lg bg-muted/30 p-4 animate-in fade-in slide-in-from-bottom-1 duration-300 transition-colors ${
+        isOver ? "ring-2 ring-primary bg-primary/5" : ""
+      }`}
+    >
       {/* Subsection Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -88,6 +106,9 @@ export function SubSectionCard({
             >
               <TaskRow
                 task={task}
+                sectionId={sectionId}
+                subSectionId={subSection.id}
+                duplicateBugIds={duplicateBugIds}
                 onUpdate={(taskId, updates) =>
                   onUpdateTask(subSection.id, taskId, updates)
                 }
@@ -97,10 +118,14 @@ export function SubSectionCard({
           ))}
         </div>
       ) : (
-        <div className="text-center py-8 animate-in fade-in duration-300">
+        <div
+          className={`text-center py-8 animate-in fade-in duration-300 rounded-lg ${isOver ? "bg-primary/10" : ""}`}
+        >
           <Package className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
           <p className="text-sm text-muted-foreground">
-            No tasks yet. Click &quot;Add Task&quot; to get started.
+            {isOver
+              ? "Drop task here"
+              : 'No tasks yet. Click "Add Task" to get started.'}
           </p>
         </div>
       )}
