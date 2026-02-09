@@ -1,31 +1,38 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { X } from "lucide-react"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export interface ToastProps {
-  title?: string
-  description?: string
-  variant?: "default" | "success" | "error" | "warning"
-  duration?: number
-  onClose?: () => void
+  title?: string;
+  description?: string;
+  variant?: "default" | "success" | "error" | "warning";
+  duration?: number;
+  onClose?: () => void;
 }
 
-export function Toast({ title, description, variant = "default", onClose }: ToastProps) {
+export function Toast({
+  title,
+  description,
+  variant = "default",
+  onClose,
+}: ToastProps) {
   const variantStyles = {
     default: "bg-background border-border",
-    success: "bg-green-500/10 border-green-500/50 text-green-700 dark:text-green-400",
+    success:
+      "bg-green-500/10 border-green-500/50 text-green-700 dark:text-green-400",
     error: "bg-red-500/10 border-red-500/50 text-red-700 dark:text-red-400",
-    warning: "bg-yellow-500/10 border-yellow-500/50 text-yellow-700 dark:text-yellow-400",
-  }
+    warning:
+      "bg-yellow-500/10 border-yellow-500/50 text-yellow-700 dark:text-yellow-400",
+  };
 
   return (
     <div
       className={cn(
-        "pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg border shadow-lg",
+        "pointer-events-auto backdrop-blur-lg w-full max-w-sm overflow-hidden rounded-lg border shadow-lg",
         "animate-in slide-in-from-top-full duration-300",
-        variantStyles[variant]
+        variantStyles[variant],
       )}
     >
       <div className="p-4">
@@ -47,42 +54,44 @@ export function Toast({ title, description, variant = "default", onClose }: Toas
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 // Toast container component
 export function ToastContainer({ children }: { children: React.ReactNode }) {
   return (
-    <div className="pointer-events-none fixed top-0 right-0 z-50 flex max-h-screen w-full flex-col gap-2 p-4 sm:top-4 sm:right-4 sm:max-w-md">
+    <div className="pointer-events-none fixed top-0 right-0 z-[9999] flex max-h-screen w-full flex-col gap-2 p-4 sm:top-4 sm:right-4 sm:max-w-md">
       {children}
     </div>
-  )
+  );
 }
 
 // Simple toast hook
 export function useToast() {
-  const [toasts, setToasts] = React.useState<(ToastProps & { id: string })[]>([])
+  const [toasts, setToasts] = React.useState<(ToastProps & { id: string })[]>(
+    [],
+  );
 
   const showToast = React.useCallback((props: ToastProps) => {
-    const id = Math.random().toString(36).substr(2, 9)
-    const duration = props.duration || 3000
+    const id = Math.random().toString(36).substr(2, 9);
+    const duration = props.duration || 3000;
 
-    setToasts((prev) => [...prev, { ...props, id }])
+    setToasts((prev) => [...prev, { ...props, id }]);
 
     if (duration > 0) {
       setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id))
-      }, duration)
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, duration);
     }
-  }, [])
+  }, []);
 
   const removeToast = React.useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id))
-  }, [])
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   return {
     toasts,
     showToast,
     removeToast,
-  }
+  };
 }

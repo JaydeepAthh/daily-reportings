@@ -26,12 +26,11 @@ export function ClearAllButton({ onClearAll }: ClearAllButtonProps) {
     <>
       <Button
         variant="destructive"
+        size="sm"
         onClick={() => setOpen(true)}
-        className="col-span-1 h-full"
         aria-label="Clear all tasks"
       >
-        <Trash2 className="h-5 w-5 mr-2" />
-        Clear All Tasks
+        <Trash2 className="h-3.5 w-3.5" />
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -42,11 +41,11 @@ export function ClearAllButton({ onClearAll }: ClearAllButtonProps) {
               <DialogTitle>Clear All Tasks?</DialogTitle>
             </div>
             <DialogDescription className="pt-2">
-              This will remove all tasks from all sections. This action cannot be
-              undone.
+              This will remove all tasks from all sections. This action cannot
+              be undone.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>

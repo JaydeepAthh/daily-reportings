@@ -23,41 +23,31 @@ import {
   ValidationWarning,
 } from "@/lib/report-formatter";
 import { DateSelector } from "@/components/DateSelector";
-import { SectionCard } from "@/components/SectionCard";
+import { KanbanColumn } from "@/components/KanbanColumn";
 import { AddSectionButton } from "@/components/AddSectionButton";
 import { GenerateReportButton } from "@/components/GenerateReportButton";
 import { ReportPreview } from "@/components/ReportPreview";
 import { ClearAllButton } from "@/components/ClearAllButton";
 import { StorageToggle } from "@/components/StorageToggle";
 import { TemplateManager } from "@/components/TemplateManager";
-import { ExportOptions } from "@/components/ExportOptions";
-import { TimeTracker } from "@/components/TimeTracker";
 import {
   ImportReportDialog,
   ImportReportDialogRef,
 } from "@/components/ImportReportDialog";
 import { ValidationWarnings } from "@/components/ValidationWarnings";
 import { CompareView } from "@/components/CompareView";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useToast, ToastContainer, Toast } from "@/components/ui/toast";
 import { useImportHistory } from "@/hooks/useImportHistory";
-import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import {
   useLocalStorage,
   usePersistenceToggle,
   useHasStoredData,
 } from "@/hooks/useLocalStorage";
-import {
-  BarChart3,
-  Keyboard,
-  RotateCcw,
-  GitCompare,
-  AlertTriangle,
-  Calendar,
-  Calendar1,
-} from "lucide-react";
+import { Clock, ListChecks, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   DndContext,
   DragOverlay,
@@ -631,6 +621,15 @@ export default function Home() {
 
   const totalTime = calculateReportTotalTime(report);
   const statusCounts = countTasksByStatus(report);
+  const totalTasks = Object.values(statusCounts).reduce((a, b) => a + b, 0);
+
+  // Generate report with copy feedback
+  const [copied, setCopied] = useState(false);
+  const handleGenerateWithFeedback = async () => {
+    await handleGenerateReport();
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <>
@@ -655,279 +654,165 @@ export default function Home() {
         />
       )}
 
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background flex flex-col">
         {/* Sticky Header */}
         <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-          <div className="container mx-auto px-4 py-4 sm:py-6">
+          <div className="px-4 py-3">
+            {/* Top row: Title + Actions */}
             <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">
-                  Daily Report Generator
-                </h1>
-                <p className="text-muted-foreground mt-1 text-sm sm:text-base hidden sm:block">
-                  Track your daily tasks and generate formatted reports
-                </p>
-              </div>
+              <h1 className="text-lg font-bold tracking-tight truncate">
+                Daily Report Generator
+              </h1>
               <div className="flex items-center gap-2 shrink-0">
+                <AddSectionButton onAddSection={handleAddSection} />
+                <TemplateManager
+                  currentSections={report.sections}
+                  onLoadTemplate={handleLoadTemplate}
+                />
+                <StorageToggle
+                  enabled={persistenceEnabled}
+                  onToggle={setPersistenceEnabled}
+                />
+                <Separator orientation="vertical" className="h-6" />
+                <ClearAllButton onClearAll={handleClearAll} />
                 <Button
-                  variant="outline"
                   size="sm"
-                  className="hidden sm:flex items-center gap-2"
-                  onClick={handleGenerateReport}
-                  aria-label="Generate report (Ctrl+S)"
+                  onClick={handleGenerateWithFeedback}
+                  className="gap-1.5"
                 >
-                  <Keyboard className="h-4 w-4" />
-                  <span className="text-xs">Ctrl+S</span>
+                  {copied ? (
+                    <>
+                      <Check className="h-3.5 w-3.5" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3.5 w-3.5" />
+                      Generate
+                    </>
+                  )}
                 </Button>
-                <Button
-                  size="sm"
-                  className="sm:hidden"
-                  onClick={handleGenerateReport}
-                  aria-label="Generate report"
-                >
-                  Generate
-                </Button>
+              </div>
+            </div>
+
+            {/* Toolbar: Dates + Stats */}
+            <div className="flex items-center justify-between gap-6 mt-3 flex-wrap">
+              {/* Compact date selectors */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Label
+                    htmlFor="header-today"
+                    className="text-xs text-muted-foreground whitespace-nowrap"
+                  >
+                    Today
+                  </Label>
+                  <Input
+                    id="header-today"
+                    type="date"
+                    value={report.date}
+                    onChange={(e) => handleTodayDateChange(e.target.value)}
+                    className="h-7 text-xs w-[140px] pl-2.5"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label
+                    htmlFor="header-next"
+                    className="text-xs text-muted-foreground whitespace-nowrap"
+                  >
+                    Next Plan
+                  </Label>
+                  <Input
+                    id="header-next"
+                    type="date"
+                    value={report.nextPlanDate}
+                    onChange={(e) => handleNextPlanDateChange(e.target.value)}
+                    className="h-7 text-xs w-[140px] pl-2.5"
+                  />
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div className="flex items-center gap-4 text-xs">
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5" />
+                  <span className="font-semibold text-foreground">
+                    {formatTimeFromDecimal(totalTime)}
+                  </span>
+                  <span>({totalTime.toFixed(2)}h)</span>
+                </div>
+                <Separator orientation="vertical" className="h-4" />
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <ListChecks className="h-3.5 w-3.5" />
+                  <span className="font-semibold text-foreground">
+                    {totalTasks}
+                  </span>
+                  <span>tasks</span>
+                </div>
+                <Separator orientation="vertical" className="h-4" />
+                <div className="flex items-center gap-3">
+                  <span className="text-green-500 font-medium">
+                    {statusCounts.DONE} done
+                  </span>
+                  <span className="text-yellow-500 font-medium">
+                    {statusCounts["IN PROGRESS"]} in progress
+                  </span>
+                  <span className="text-blue-500 font-medium">
+                    {statusCounts["MR RAISED"]} MR
+                  </span>
+                  <span className="text-purple-500 font-medium">
+                    {statusCounts["D&T"]} D&T
+                  </span>
+                  <span className="text-emerald-500 font-medium">
+                    {statusCounts.COMPLETED} completed
+                  </span>
+                  <span className="text-orange-500 font-medium">
+                    {statusCounts["DEV REPLIED"]} dev replied
+                  </span>
+                </div>
               </div>
             </div>
           </div>
         </header>
 
-        <main className="container mx-auto px-4 py-8">
-          <div className="grid gap-8 grid-cols-3">
-            {/* Main Content */}
-            <div className="space-y-6 col-span-2">
-              {/* Import Report Button & History */}
-              {/* <div className="space-y-3">
-              <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-                <ImportReportDialog
-                  ref={importDialogRef}
-                  onImport={handleImportReport}
-                  hasExistingData={hasExistingData}
-                  onSuccess={handleImportSuccess}
+        {/* Kanban Board */}
+        <main className="flex-1 overflow-hidden">
+          <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="flex gap-3 p-4 overflow-x-auto h-[calc(100vh-130px)] scrollbar-hidden hide-scrollbar">
+              {report.sections.map((section) => (
+                <KanbanColumn
+                  key={section.id}
+                  section={section}
+                  duplicateBugIds={duplicateBugIds}
+                  onAddTask={handleAddTask}
+                  onUpdateTask={handleUpdateTask}
+                  onDeleteTask={handleDeleteTask}
+                  onDeleteSection={
+                    !section.isFixed ? handleDeleteSection : undefined
+                  }
+                  onAddSubSection={handleAddSubSection}
+                  onDeleteSubSection={handleDeleteSubSection}
+                  onConvertToSubSections={handleConvertToSubSections}
                 />
-
-                {hasHistory && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      onClick={handleReimportLast}
-                      className="gap-2"
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                      Reimport Last ({getTimeSinceImport()})
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      onClick={() => setShowCompareView(true)}
-                      className="gap-2"
-                    >
-                      <GitCompare className="h-4 w-4" />
-                      Compare
-                    </Button>
-                  </>
-                )}
-              </div>
-
-              {validationWarnings.length > 0 && showValidationWarnings && (
-                <ValidationWarnings
-                  warnings={validationWarnings}
-                  onDismiss={() => setShowValidationWarnings(false)}
-                />
-              )}
-            </div> */}
-
-              {/* Date Selectors */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="uppercase text-muted-foreground flex items-center justify-start gap-2">
-                    <Calendar size={14} />
-                    Report Dates
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <DateSelector
-                    todayDate={report.date}
-                    nextPlanDate={report.nextPlanDate}
-                    onTodayDateChange={handleTodayDateChange}
-                    onNextPlanDateChange={handleNextPlanDateChange}
-                  />
-                </CardContent>
-              </Card>
-
-              {/* Sections */}
-              <DndContext
-                sensors={sensors}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-              >
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <p className="capitalize font-semibold text-xl">
-                      Work log categories
-                    </p>
-                    {/* Add Section Button */}
-                    <AddSectionButton onAddSection={handleAddSection} />
-                  </div>
-                  {report.sections.map((section) => (
-                    <SectionCard
-                      key={section.id}
-                      section={section}
-                      duplicateBugIds={duplicateBugIds}
-                      onAddTask={handleAddTask}
-                      onUpdateTask={handleUpdateTask}
-                      onDeleteTask={handleDeleteTask}
-                      onDeleteSection={
-                        !section.isFixed ? handleDeleteSection : undefined
-                      }
-                      onAddSubSection={handleAddSubSection}
-                      onDeleteSubSection={handleDeleteSubSection}
-                      onConvertToSubSections={handleConvertToSubSections}
-                    />
-                  ))}
-                </div>
-                <DragOverlay>
-                  {activeTask ? (
-                    <div className="rounded-lg border-2 border-primary bg-card p-3 shadow-xl opacity-90 max-w-md">
-                      <p className="text-sm font-medium truncate">
-                        {activeTask.link || "No link"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {activeTask.status} &middot;{" "}
-                        {activeTask.timeSpent || "No time"}
-                      </p>
-                    </div>
-                  ) : null}
-                </DragOverlay>
-              </DndContext>
-              {/* Actions */}
-              <Card className="bg-transparent border-none p-0">
-                <CardContent className="grid grid-cols-5 p-0 gap-2">
-                  <GenerateReportButton report={report} />
-                  <ClearAllButton onClearAll={handleClearAll} />
-                </CardContent>
-              </Card>
+              ))}
             </div>
-
-            {/* Sidebar */}
-            <div className="space-y-6 col-span-1">
-              {/* Statistics */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5" />
-                    Statistics
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Total Time
-                    </p>
-                    <p className="text-2xl font-bold">
-                      {formatTimeFromDecimal(totalTime)}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {totalTime.toFixed(2)} hours
-                    </p>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Task Breakdown</p>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Done</span>
-                        <span className="font-medium">{statusCounts.DONE}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">MR Raised</span>
-                        <span className="font-medium">
-                          {statusCounts["MR RAISED"]}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">
-                          In Progress
-                        </span>
-                        <span className="font-medium">
-                          {statusCounts["IN PROGRESS"]}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">D&T</span>
-                        <span className="font-medium">
-                          {statusCounts["D&T"]}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Completed</span>
-                        <span className="font-medium">
-                          {statusCounts.COMPLETED}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">
-                          Dev Replied
-                        </span>
-                        <span className="font-medium">
-                          {statusCounts["DEV REPLIED"]}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Keyboard Shortcuts */}
-              {/* <Card className="hidden sm:block">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Keyboard className="h-5 w-5" />
-                  Keyboard Shortcuts
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Generate Report</span>
-                  <kbd className="px-2 py-1 text-xs font-semibold text-foreground bg-muted border border-border rounded">
-                    Ctrl+S
-                  </kbd>
+            <DragOverlay>
+              {activeTask ? (
+                <div className="rounded-lg border-2 border-primary bg-card p-2.5 shadow-xl opacity-90 w-[280px]">
+                  <p className="text-xs font-mono font-medium truncate">
+                    {activeTask.link || "No link"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {activeTask.status} &middot;{" "}
+                    {activeTask.timeSpent || "No time"}
+                  </p>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Import Report</span>
-                  <kbd className="px-2 py-1 text-xs font-semibold text-foreground bg-muted border border-border rounded">
-                    Ctrl+I
-                  </kbd>
-                </div>
-                <p className="text-xs text-muted-foreground mt-4">
-                  More shortcuts coming soon!
-                </p>
-              </CardContent>
-            </Card> */}
-
-              <Card className="p-4 rounded-2xl border border-border-muted space-y-4">
-                {/* Templates */}
-                <TemplateManager
-                  currentSections={report.sections}
-                  onLoadTemplate={handleLoadTemplate}
-                />
-                {/* Storage Toggle */}
-                <StorageToggle
-                  enabled={persistenceEnabled}
-                  onToggle={setPersistenceEnabled}
-                />
-
-                {/* Time Tracker */}
-                {/* <TimeTracker onTimeLogged={handleTimeLogged} /> */}
-              </Card>
-            </div>
-          </div>
-          {/* Report Preview */}
-          <ReportPreview report={report} />
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         </main>
       </div>
     </>

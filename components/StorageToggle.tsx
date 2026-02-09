@@ -1,6 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Database } from "lucide-react";
 
 interface StorageToggleProps {
   enabled: boolean;
@@ -9,25 +7,23 @@ interface StorageToggleProps {
 
 export function StorageToggle({ enabled, onToggle }: StorageToggleProps) {
   return (
-    <div className="px-2">
-      <div className="flex items-center gap-3">
-        <div className="flex-grow">
-          <h4 className="text-sm font-bold text-slate-200">Auto-save</h4>
-          <p className="text-[10px] text-slate-500">Persist data to browser storage</p>
-        </div>
-        <Label htmlFor="storage-toggle" className="relative inline-flex items-center cursor-pointer">
-          {/* {enabled ? "Auto-save enabled" : "Auto-save disabled"} */}
-          <input
-            type="checkbox"
-            id="storage-toggle"
-            checked={enabled}
-            onChange={(e) => onToggle(e.target.checked)}
-            className="sr-only peer"
-            aria-label="Enable data persistence"
-          />
-          <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-        </Label>
-      </div>
-    </div>
+    <Label
+      htmlFor="storage-toggle"
+      className="relative inline-flex items-center cursor-pointer gap-1.5 select-none"
+      title={enabled ? "Auto-save on" : "Auto-save off"}
+    >
+      <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">
+        {enabled ? "Saved" : "Unsaved"}
+      </span>
+      <input
+        type="checkbox"
+        id="storage-toggle"
+        checked={enabled}
+        onChange={(e) => onToggle(e.target.checked)}
+        className="sr-only peer"
+        aria-label="Toggle auto-save"
+      />
+      <div className="w-7 h-4 bg-muted rounded-full peer peer-checked:bg-primary after:content-[''] after:absolute after:top-[3px] after:right-[14px] peer-checked:after:translate-x-[12px] after:bg-white after:rounded-full after:h-2.5 after:w-2.5 after:transition-all" />
+    </Label>
   );
 }

@@ -177,15 +177,15 @@ export function TaskRow({
         </div>
 
         {/* Delete Button */}
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">
+        <div className="space-y-1 flex items-center justify-end">
+          <label className="sr-only text-xs font-medium text-muted-foreground">
             Action
           </label>
           <Button
             variant="destructive"
-            size="sm"
+            size="icon"
             onClick={() => onDelete(task.id)}
-            className="h-9 w-full transition-all hover:scale-105"
+            className="mt-5.75 "
             aria-label="Delete task"
           >
             <Trash2 className="h-4 w-4" />

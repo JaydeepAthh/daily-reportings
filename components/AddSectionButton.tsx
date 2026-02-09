@@ -41,10 +41,10 @@ export function AddSectionButton({ onAddSection }: AddSectionButtonProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild> 
-        <Button className="w-fit bg-transparent hover:bg-transparent hover:cursor-pointer text-primary" size="lg">
-          <PlusCircle className="h-5 w-5 " />
-          Add Custom Section
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-1.5">
+          <PlusCircle className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Add Section</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
@@ -52,8 +52,8 @@ export function AddSectionButton({ onAddSection }: AddSectionButtonProps) {
           <DialogHeader>
             <DialogTitle>Add Custom Section</DialogTitle>
             <DialogDescription>
-              Create a new section to organize your tasks. You can add it with or
-              without subsections.
+              Create a new section to organize your tasks. You can add it with
+              or without subsections.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -83,8 +83,8 @@ export function AddSectionButton({ onAddSection }: AddSectionButtonProps) {
 
             {withSubSections && (
               <p className="text-xs text-muted-foreground">
-                The section will include 4 subsections: DONE, MR RAISED, IN PROGRESS,
-                and D&T for better task organization.
+                The section will include 4 subsections: DONE, MR RAISED, IN
+                PROGRESS, and D&T for better task organization.
               </p>
             )}
           </div>
