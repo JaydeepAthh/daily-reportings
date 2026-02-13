@@ -11,7 +11,10 @@ import {
   Trash2,
   Clock,
   AlertTriangle,
+  Link2,
 } from "lucide-react";
+import { Button } from "./ui/button";
+import Link from "next/link";
 
 interface TaskCardProps {
   task: Task;
@@ -80,6 +83,12 @@ export function TaskCard({
             )}
             {bugId || "No link"}
           </span>
+
+          <Button size={"icon-xs"} variant={"ghost"} className="">
+            <Link href={task.link} target="_blank">
+              <Link2 size={14} />
+            </Link>
+          </Button>
 
           <StatusBadge status={task.status} size="sm" />
         </div>
