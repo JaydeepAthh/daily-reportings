@@ -1,4 +1,4 @@
-import { Report, Section, SubSection, Task } from "@/types/report";
+import { Report, Section, Task } from "@/types/report";
 import { calculateSectionTotalTime } from "./report-utils";
 import { calculateSectionTotal } from "./time-utils";
 
@@ -56,9 +56,12 @@ export function validateReport(report: Report): ValidationResult {
   const warnings: ValidationWarning[] = [];
 
   report.sections.forEach((section) => {
-    const allTasks: Array<{ task: Task; index: number; subName?: string }> = section.subSections
-      ? section.subSections.flatMap(sub => sub.tasks.map((t, i) => ({ task: t, index: i, subName: sub.name })))
-      : (section.tasks || []).map((t, i) => ({ task: t, index: i }));
+    const allTasks: Array<{ task: Task; index: number; subName?: string }> =
+      section.subSections
+        ? section.subSections.flatMap((sub) =>
+            sub.tasks.map((t, i) => ({ task: t, index: i, subName: sub.name })),
+          )
+        : (section.tasks || []).map((t, i) => ({ task: t, index: i }));
 
     allTasks.forEach(({ task, index, subName }) => {
       const location = subName ? `${section.name} > ${subName}` : section.name;
@@ -118,24 +121,6 @@ function formatTask(task: Task): string {
 }
 
 /**
- * Format a subsection with its tasks (exact import format)
- */
-function formatSubSection(subSection: SubSection, includeEmpty: boolean = false): string {
-  // Skip empty subsections unless explicitly included
-  if (subSection.tasks.length === 0 && !includeEmpty) {
-    return "";
-  }
-
-  let output = `    ${subSection.name}[${subSection.tasks.length}] >>>\n`;
-
-  subSection.tasks.forEach((task) => {
-    output += formatTask(task) + "\n";
-  });
-
-  return output;
-}
-
-/**
  * Format a section with its tasks or subsections
  */
 function formatSection(section: Section, options: FormatOptions = {}): string {
@@ -144,28 +129,24 @@ function formatSection(section: Section, options: FormatOptions = {}): string {
   const taskCount = countSectionTasks(section);
   const totalTime = calculateSectionTotalTime(section);
 
-  // Format section header (exact import format)
-  let output = `[${section.name}] [${taskCount}] >>>`;
+  // Format section header
+  let header = `[${section.name}] [${taskCount}] >>>`;
 
   // Optionally add total time (for display, not for reimport)
   if (options.includeTotals) {
-    output += ` Total: ${totalTime.toFixed(2)} hours`;
+    header += ` Total: ${totalTime.toFixed(2)} hours`;
   }
 
-  output += "\n";
+  let output = header + "\n";
 
-  // Section with subsections
-  if (section.subSections) {
-    section.subSections.forEach((subSection) => {
-      output += formatSubSection(subSection, false);
-    });
-  }
-  // Section with direct tasks
-  else if (section.tasks) {
-    section.tasks.forEach((task) => {
-      output += formatTask(task) + "\n";
-    });
-  }
+  // Collect all tasks (flatten subsections)
+  const allTasks: Task[] = section.subSections
+    ? section.subSections.flatMap((sub) => sub.tasks)
+    : section.tasks || [];
+
+  allTasks.forEach((task) => {
+    output += formatTask(task) + "\n";
+  });
 
   return output;
 }
@@ -192,7 +173,7 @@ function formatNextPlan(report: Report): string {
  */
 export function generateFormattedReport(
   report: Report,
-  options: FormatOptions = { includeTotals: true, includeOverallTotal: true }
+  options: FormatOptions = { includeTotals: true, includeOverallTotal: true },
 ): string {
   // Validate if requested
   if (options.validateBeforeFormat) {
@@ -204,11 +185,11 @@ export function generateFormattedReport(
 
   let output = `Today's Update || ${formatDate(report.date)}\n`;
 
-  // Add all sections that have tasks
+  // Add all sections that have tasks, separated by blank lines
   report.sections.forEach((section) => {
     const formatted = formatSection(section, options);
     if (formatted) {
-      output += formatted;
+      output += "\n" + formatted;
     }
   });
 
@@ -219,7 +200,7 @@ export function generateFormattedReport(
       overallTotal += calculateSectionTotalTime(section);
     });
 
-    output += `Overall Total: ${overallTotal.toFixed(2)} hours\n`;
+    output += `\nOverall Total: ${overallTotal.toFixed(2)} hours\n`;
   }
 
   // Add next plan if exists

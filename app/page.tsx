@@ -44,7 +44,13 @@ import {
   usePersistenceToggle,
   useHasStoredData,
 } from "@/hooks/useLocalStorage";
-import { Clock, ListChecks, Copy, Check } from "lucide-react";
+import {
+  Clock,
+  ListChecks,
+  Copy,
+  Check,
+  ChevronsLeftRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -323,6 +329,49 @@ export default function Home() {
     }));
   };
 
+  // Rename a section
+  const handleRenameSection = (sectionId: string, newName: string) => {
+    setReport((prev) => ({
+      ...prev,
+      sections: prev.sections.map((section) =>
+        section.id === sectionId ? { ...section, name: newName } : section,
+      ),
+    }));
+  };
+
+  // Rename a subsection
+  const handleRenameSubSection = (
+    sectionId: string,
+    subSectionId: string,
+    newName: string,
+  ) => {
+    setReport((prev) => ({
+      ...prev,
+      sections: prev.sections.map((section) => {
+        if (section.id !== sectionId || !section.subSections) return section;
+        return {
+          ...section,
+          subSections: section.subSections.map((sub) =>
+            sub.id === subSectionId ? { ...sub, name: newName } : sub,
+          ),
+        };
+      }),
+    }));
+  };
+
+  // Update section statuses list
+  const handleUpdateSectionStatuses = (
+    sectionId: string,
+    statuses: string[],
+  ) => {
+    setReport((prev) => ({
+      ...prev,
+      sections: prev.sections.map((section) =>
+        section.id === sectionId ? { ...section, statuses } : section,
+      ),
+    }));
+  };
+
   // Clear all tasks
   const handleClearAll = () => {
     setReport((prev) => ({
@@ -538,6 +587,18 @@ export default function Home() {
     [setCollapsedColumns],
   );
 
+  const allCollapsed =
+    report.sections.length > 0 &&
+    report.sections.every((s) => collapsedSet.has(s.id));
+
+  const handleToggleCollapseAll = useCallback(() => {
+    if (allCollapsed) {
+      setCollapsedColumns([]);
+    } else {
+      setCollapsedColumns(report.sections.map((s) => s.id));
+    }
+  }, [allCollapsed, report.sections, setCollapsedColumns]);
+
   // Duplicate bug detection
   const duplicateBugIds = useMemo(() => getDuplicateBugIds(report), [report]);
 
@@ -691,6 +752,16 @@ export default function Home() {
                 Daily Report Generator
               </h1>
               <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleToggleCollapseAll}
+                  title={allCollapsed ? "Expand all" : "Collapse all"}
+                  className="gap-1.5"
+                >
+                  <ChevronsLeftRight className="h-3.5 w-3.5" />
+                  {allCollapsed ? "Expand all" : "Collapse all"}
+                </Button>
                 <AddSectionButton onAddSection={handleAddSection} />
                 <TemplateManager
                   currentSections={report.sections}
@@ -822,9 +893,12 @@ export default function Home() {
                   onDeleteSection={
                     !section.isFixed ? handleDeleteSection : undefined
                   }
+                  onRenameSection={handleRenameSection}
                   onAddSubSection={handleAddSubSection}
                   onDeleteSubSection={handleDeleteSubSection}
+                  onRenameSubSection={handleRenameSubSection}
                   onConvertToSubSections={handleConvertToSubSections}
+                  onUpdateSectionStatuses={handleUpdateSectionStatuses}
                 />
               ))}
             </div>

@@ -27,6 +27,7 @@ export interface Section {
   isFixed: boolean;
   subSections?: SubSection[];
   tasks?: Task[]; // For sections without subsections
+  statuses?: string[]; // Custom statuses for subsection-based sections
 }
 
 export interface Report {

@@ -21,6 +21,7 @@ interface TaskCardProps {
   sectionId: string;
   subSectionId?: string;
   duplicateBugIds?: Set<string>;
+  sectionStatuses?: string[];
   onUpdate: (taskId: string, updates: Partial<Task>) => void;
   onDelete: (taskId: string) => void;
 }
@@ -30,6 +31,7 @@ export function TaskCard({
   sectionId,
   subSectionId,
   duplicateBugIds,
+  sectionStatuses,
   onUpdate,
   onDelete,
 }: TaskCardProps) {
@@ -133,6 +135,7 @@ export function TaskCard({
         onOpenChange={setEditOpen}
         onUpdate={onUpdate}
         onDelete={onDelete}
+        sectionStatuses={sectionStatuses}
       />
     </>
   );

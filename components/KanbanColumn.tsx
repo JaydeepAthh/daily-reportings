@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Section, Task } from "@/types/report";
 import { TaskCard } from "./TaskCard";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,10 @@ import {
   Package,
   ChevronsLeft,
   ChevronsRight,
+  Pencil,
+  Check,
+  X,
+  Settings2,
 } from "lucide-react";
 import { calculateSectionTotalTime } from "@/lib/report-utils";
 import { calculateSectionTotal } from "@/lib/time-utils";
@@ -44,9 +48,16 @@ interface KanbanColumnProps {
     subSectionId?: string,
   ) => void;
   onDeleteSection?: (sectionId: string) => void;
+  onRenameSection?: (sectionId: string, newName: string) => void;
   onAddSubSection?: (sectionId: string, subSectionName: string) => void;
   onDeleteSubSection?: (sectionId: string, subSectionId: string) => void;
+  onRenameSubSection?: (
+    sectionId: string,
+    subSectionId: string,
+    newName: string,
+  ) => void;
   onConvertToSubSections?: (sectionId: string) => void;
+  onUpdateSectionStatuses?: (sectionId: string, statuses: string[]) => void;
 }
 
 function DroppableArea({
@@ -72,6 +83,82 @@ function DroppableArea({
   );
 }
 
+function InlineEdit({
+  value,
+  onSave,
+  className = "",
+}: {
+  value: string;
+  onSave: (newValue: string) => void;
+  className?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== value) onSave(trimmed);
+    setEditing(false);
+  };
+
+  const cancel = () => {
+    setDraft(value);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1 flex-1 min-w-0">
+        <input
+          ref={inputRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") cancel();
+          }}
+          onBlur={commit}
+          className={`bg-background border border-input rounded px-1.5 py-0.5 text-sm font-semibold flex-1 min-w-0 outline-none focus:ring-1 focus:ring-primary ${className}`}
+        />
+        <button
+          onClick={commit}
+          className="p-0.5 text-green-500 hover:text-green-400 shrink-0"
+        >
+          <Check className="h-3 w-3" />
+        </button>
+        <button
+          onClick={cancel}
+          className="p-0.5 text-muted-foreground hover:text-foreground shrink-0"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <span
+      className={`truncate flex-1 cursor-pointer group/rename flex items-center gap-1 min-w-0 ${className}`}
+      title={`${value} (double-click to rename)`}
+      onDoubleClick={() => {
+        setDraft(value);
+        setEditing(true);
+      }}
+    >
+      <span className="truncate">{value}</span>
+      <Pencil className="h-2.5 w-2.5 text-muted-foreground/0 group-hover/rename:text-muted-foreground/50 shrink-0 transition-colors" />
+    </span>
+  );
+}
+
 export function KanbanColumn({
   section,
   duplicateBugIds,
@@ -81,27 +168,67 @@ export function KanbanColumn({
   onUpdateTask,
   onDeleteTask,
   onDeleteSection,
+  onRenameSection,
   onAddSubSection,
   onDeleteSubSection,
+  onRenameSubSection,
   onConvertToSubSections,
+  onUpdateSectionStatuses,
 }: KanbanColumnProps) {
   const [isAddSubSectionOpen, setIsAddSubSectionOpen] = useState(false);
   const [newSubSectionName, setNewSubSectionName] = useState("");
+  const [isStatusManagerOpen, setIsStatusManagerOpen] = useState(false);
+  const [statusDraft, setStatusDraft] = useState<string[]>([]);
+  const [newStatusInput, setNewStatusInput] = useState("");
+  const [editingStatusIdx, setEditingStatusIdx] = useState<number | null>(null);
+  const [editingStatusValue, setEditingStatusValue] = useState("");
 
   const totalTime = calculateSectionTotalTime(section);
   const taskCount = section.subSections
     ? section.subSections.reduce((acc, sub) => acc + sub.tasks.length, 0)
     : section.tasks?.length || 0;
 
+  // Effective statuses for task editing: saved statuses or derived from subsection names
+  const effectiveStatuses =
+    section.statuses && section.statuses.length > 0
+      ? section.statuses
+      : section.subSections?.map((s) => s.name);
+
   const handleAddSubSection = () => {
     if (newSubSectionName.trim() && onAddSubSection) {
       onAddSubSection(section.id, newSubSectionName.trim());
+      // Also add to statuses if not already there
+      if (onUpdateSectionStatuses) {
+        const current = section.statuses || [];
+        if (!current.includes(newSubSectionName.trim())) {
+          onUpdateSectionStatuses(section.id, [
+            ...current,
+            newSubSectionName.trim(),
+          ]);
+        }
+      }
       setNewSubSectionName("");
       setIsAddSubSectionOpen(false);
     }
   };
 
-  // Collapsed view — narrow bar with rotated title, still a valid drop target
+  const openStatusManager = () => {
+    setStatusDraft(
+      section.statuses
+        ? [...section.statuses]
+        : section.subSections?.map((s) => s.name) || [],
+    );
+    setIsStatusManagerOpen(true);
+  };
+
+  const saveStatuses = () => {
+    if (onUpdateSectionStatuses) {
+      onUpdateSectionStatuses(section.id, statusDraft);
+    }
+    setIsStatusManagerOpen(false);
+  };
+
+  // Collapsed view
   if (collapsed) {
     return (
       <DroppableArea
@@ -125,17 +252,12 @@ export function KanbanColumn({
           className="flex flex-col items-center h-full py-3 gap-3"
           onClick={() => onToggleCollapse?.(section.id)}
         >
-          {/* Expand icon */}
           <ChevronsRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
-
-          {/* Task count badge */}
           {taskCount > 0 && (
             <span className="text-[10px] font-semibold bg-primary/15 text-primary rounded-full w-6 h-6 flex items-center justify-center shrink-0">
               {taskCount}
             </span>
           )}
-
-          {/* Rotated section name */}
           <div className="flex-1 flex items-start justify-center min-h-0">
             <span
               className="text-sm font-semibold text-muted-foreground group-hover:text-foreground transition-colors whitespace-nowrap"
@@ -144,8 +266,6 @@ export function KanbanColumn({
               {section.name}
             </span>
           </div>
-
-          {/* Total time (if any) */}
           {taskCount > 0 && (
             <span className="text-[10px] font-mono text-muted-foreground shrink-0">
               {totalTime.toFixed(1)}h
@@ -172,14 +292,32 @@ export function KanbanColumn({
                 <ChevronsLeft className="h-3.5 w-3.5" />
               </button>
             )}
-            <h3
-              className="font-semibold text-sm truncate flex-1"
-              title={section.name}
-            >
-              {section.name}
-            </h3>
+            {onRenameSection ? (
+              <InlineEdit
+                value={section.name}
+                onSave={(name) => onRenameSection(section.id, name)}
+                className="font-semibold text-sm"
+              />
+            ) : (
+              <h3
+                className="font-semibold text-sm truncate flex-1"
+                title={section.name}
+              >
+                {section.name}
+              </h3>
+            )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            {section.subSections && onUpdateSectionStatuses && (
+              <button
+                onClick={openStatusManager}
+                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                aria-label="Manage statuses"
+                title="Manage statuses"
+              >
+                <Settings2 className="h-3.5 w-3.5" />
+              </button>
+            )}
             {!section.isFixed && onDeleteSection && (
               <button
                 onClick={() => onDeleteSection(section.id)}
@@ -222,10 +360,19 @@ export function KanbanColumn({
               >
                 {/* Subsection divider */}
                 <div className="flex items-center justify-between px-1 pt-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                      {subSection.name}
-                    </span>
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {onRenameSubSection ? (
+                      <InlineSubLabel
+                        value={subSection.name}
+                        onSave={(name) =>
+                          onRenameSubSection(section.id, subSection.id, name)
+                        }
+                      />
+                    ) : (
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        {subSection.name}
+                      </span>
+                    )}
                     <span className="text-[10px] text-muted-foreground/60">
                       {subSection.tasks.length}
                     </span>
@@ -257,7 +404,6 @@ export function KanbanColumn({
                   </div>
                 </div>
 
-                {/* Task cards in this subsection */}
                 {subSection.tasks.length > 0 ? (
                   <div className="space-y-1.5">
                     {subSection.tasks.map((task) => (
@@ -267,6 +413,7 @@ export function KanbanColumn({
                         sectionId={section.id}
                         subSectionId={subSection.id}
                         duplicateBugIds={duplicateBugIds}
+                        sectionStatuses={effectiveStatuses}
                         onUpdate={(taskId, updates) =>
                           onUpdateTask(
                             section.id,
@@ -306,6 +453,7 @@ export function KanbanColumn({
                   task={task}
                   sectionId={section.id}
                   duplicateBugIds={duplicateBugIds}
+                  sectionStatuses={effectiveStatuses}
                   onUpdate={(taskId, updates) =>
                     onUpdateTask(section.id, taskId, updates)
                   }
@@ -322,7 +470,7 @@ export function KanbanColumn({
         )}
       </div>
 
-      {/* Column Footer - Actions */}
+      {/* Column Footer */}
       <div className="p-2 border-t bg-card/50 flex items-center gap-1">
         {section.subSections ? (
           <>
@@ -350,6 +498,28 @@ export function KanbanColumn({
                   </DialogHeader>
                   <div className="py-4">
                     <Label htmlFor="kanban-subsection-name">Name</Label>
+                    {/* Show existing statuses as quick picks */}
+                    {section.statuses && section.statuses.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2 mb-3">
+                        {section.statuses
+                          .filter(
+                            (s) =>
+                              !section.subSections?.find(
+                                (sub) => sub.name === s,
+                              ),
+                          )
+                          .map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              onClick={() => setNewSubSectionName(s)}
+                              className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${newSubSectionName === s ? "bg-primary text-primary-foreground border-primary" : "border-muted-foreground/30 hover:border-primary/60 text-muted-foreground"}`}
+                            >
+                              {s}
+                            </button>
+                          ))}
+                      </div>
+                    )}
                     <Input
                       id="kanban-subsection-name"
                       placeholder="e.g., DONE, IN PROGRESS"
@@ -402,6 +572,190 @@ export function KanbanColumn({
           </>
         )}
       </div>
+
+      {/* Status Manager Dialog */}
+      <Dialog open={isStatusManagerOpen} onOpenChange={setIsStatusManagerOpen}>
+        <DialogContent className="sm:max-w-[380px]">
+          <DialogHeader>
+            <DialogTitle>Manage Statuses</DialogTitle>
+            <DialogDescription>
+              Statuses for <span className="font-medium">{section.name}</span>.
+              These appear as options when adding subsections.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-2">
+            {statusDraft.map((status, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                {editingStatusIdx === idx ? (
+                  <>
+                    <input
+                      autoFocus
+                      value={editingStatusValue}
+                      onChange={(e) => setEditingStatusValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          const trimmed = editingStatusValue.trim();
+                          if (trimmed) {
+                            const updated = [...statusDraft];
+                            updated[idx] = trimmed;
+                            setStatusDraft(updated);
+                          }
+                          setEditingStatusIdx(null);
+                        }
+                        if (e.key === "Escape") setEditingStatusIdx(null);
+                      }}
+                      onBlur={() => {
+                        const trimmed = editingStatusValue.trim();
+                        if (trimmed) {
+                          const updated = [...statusDraft];
+                          updated[idx] = trimmed;
+                          setStatusDraft(updated);
+                        }
+                        setEditingStatusIdx(null);
+                      }}
+                      className="flex-1 bg-background border border-input rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </>
+                ) : (
+                  <span
+                    className="flex-1 text-sm px-2 py-1 rounded hover:bg-muted cursor-pointer"
+                    onDoubleClick={() => {
+                      setEditingStatusIdx(idx);
+                      setEditingStatusValue(status);
+                    }}
+                    title="Double-click to rename"
+                  >
+                    {status}
+                  </span>
+                )}
+                <button
+                  onClick={() => {
+                    setEditingStatusIdx(idx);
+                    setEditingStatusValue(status);
+                  }}
+                  className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  title="Rename"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={() =>
+                    setStatusDraft(statusDraft.filter((_, i) => i !== idx))
+                  }
+                  className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  title="Delete"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+            {/* Add new status */}
+            <div className="flex items-center gap-2 pt-1 border-t">
+              <Input
+                placeholder="New status name..."
+                value={newStatusInput}
+                onChange={(e) => setNewStatusInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const trimmed = newStatusInput.trim();
+                    if (trimmed && !statusDraft.includes(trimmed)) {
+                      setStatusDraft([...statusDraft, trimmed]);
+                    }
+                    setNewStatusInput("");
+                  }
+                }}
+                className="h-8 text-sm flex-1"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 px-2"
+                onMouseDown={(e) => {
+                  e.preventDefault(); // prevent input blur before click
+                  const trimmed = newStatusInput.trim();
+                  if (trimmed && !statusDraft.includes(trimmed)) {
+                    setStatusDraft([...statusDraft, trimmed]);
+                  }
+                  setNewStatusInput("");
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsStatusManagerOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button size="sm" onClick={saveStatuses}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+// Separate small inline edit for subsection labels (uppercase style)
+function InlineSubLabel({
+  value,
+  onSave,
+}: {
+  value: string;
+  onSave: (newValue: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== value) onSave(trimmed);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") {
+            setDraft(value);
+            setEditing(false);
+          }
+        }}
+        onBlur={commit}
+        className="text-[11px] font-bold uppercase tracking-wider bg-background border border-input rounded px-1 py-0 outline-none focus:ring-1 focus:ring-primary w-[100px]"
+      />
+    );
+  }
+
+  return (
+    <span
+      className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground cursor-pointer hover:text-foreground transition-colors group/sublabel flex items-center gap-1"
+      title="Double-click to rename"
+      onDoubleClick={() => {
+        setDraft(value);
+        setEditing(true);
+      }}
+    >
+      {value}
+      <Pencil className="h-2 w-2 text-muted-foreground/0 group-hover/sublabel:text-muted-foreground/40 transition-colors" />
+    </span>
   );
 }

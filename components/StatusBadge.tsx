@@ -53,21 +53,84 @@ const SIZE_CLASSES = {
   lg: "text-base px-3 py-1.5",
 };
 
+const CUSTOM_COLOR_PALETTE = [
+  {
+    color: "text-pink-700 dark:text-pink-300",
+    bgColor: "bg-pink-100",
+    darkBgColor: "dark:bg-pink-900/30",
+  },
+  {
+    color: "text-cyan-700 dark:text-cyan-300",
+    bgColor: "bg-cyan-100",
+    darkBgColor: "dark:bg-cyan-900/30",
+  },
+  {
+    color: "text-rose-700 dark:text-rose-300",
+    bgColor: "bg-rose-100",
+    darkBgColor: "dark:bg-rose-900/30",
+  },
+  {
+    color: "text-violet-700 dark:text-violet-300",
+    bgColor: "bg-violet-100",
+    darkBgColor: "dark:bg-violet-900/30",
+  },
+  {
+    color: "text-amber-700 dark:text-amber-300",
+    bgColor: "bg-amber-100",
+    darkBgColor: "dark:bg-amber-900/30",
+  },
+  {
+    color: "text-teal-700 dark:text-teal-300",
+    bgColor: "bg-teal-100",
+    darkBgColor: "dark:bg-teal-900/30",
+  },
+  {
+    color: "text-indigo-700 dark:text-indigo-300",
+    bgColor: "bg-indigo-100",
+    darkBgColor: "dark:bg-indigo-900/30",
+  },
+  {
+    color: "text-lime-700 dark:text-lime-300",
+    bgColor: "bg-lime-100",
+    darkBgColor: "dark:bg-lime-900/30",
+  },
+  {
+    color: "text-fuchsia-700 dark:text-fuchsia-300",
+    bgColor: "bg-fuchsia-100",
+    darkBgColor: "dark:bg-fuchsia-900/30",
+  },
+  {
+    color: "text-sky-700 dark:text-sky-300",
+    bgColor: "bg-sky-100",
+    darkBgColor: "dark:bg-sky-900/30",
+  },
+];
+
+function getCustomColor(status: string) {
+  let hash = 0;
+  for (let i = 0; i < status.length; i++) {
+    hash = status.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return CUSTOM_COLOR_PALETTE[Math.abs(hash) % CUSTOM_COLOR_PALETTE.length];
+}
+
 export function StatusBadge({ status, size = "sm" }: StatusBadgeProps) {
-  const config = STATUS_CONFIG[status];
+  const config = STATUS_CONFIG[status as TaskStatus];
+  const colors = config ?? getCustomColor(status);
+  const label = config?.label ?? status;
 
   return (
     <span
       className={`
         inline-flex items-center justify-center rounded-full font-semibold
-        ${config.color} ${config.bgColor} ${config.darkBgColor}
+        ${colors.color} ${colors.bgColor} ${colors.darkBgColor}
         ${SIZE_CLASSES[size]}
         transition-colors duration-200
       `}
       role="status"
-      aria-label={`Status: ${config.label}`}
+      aria-label={`Status: ${label}`}
     >
-      {config.label}
+      {label}
     </span>
   );
 }

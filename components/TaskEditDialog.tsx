@@ -9,6 +9,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,9 +29,10 @@ interface TaskEditDialogProps {
   onOpenChange: (open: boolean) => void;
   onUpdate: (taskId: string, updates: Partial<Task>) => void;
   onDelete: (taskId: string) => void;
+  sectionStatuses?: string[];
 }
 
-const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
+const DEFAULT_STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
   { value: "DONE", label: "Done" },
   { value: "MR RAISED", label: "MR Raised" },
   { value: "IN PROGRESS", label: "In Progress" },
@@ -45,7 +47,13 @@ export function TaskEditDialog({
   onOpenChange,
   onUpdate,
   onDelete,
+  sectionStatuses,
 }: TaskEditDialogProps) {
+  // Build status options: section statuses take priority, fall back to defaults
+  const statusOptions =
+    sectionStatuses && sectionStatuses.length > 0
+      ? sectionStatuses.map((s) => ({ value: s as TaskStatus, label: s }))
+      : DEFAULT_STATUS_OPTIONS;
   const [linkFocused, setLinkFocused] = useState(false);
 
   const displayLink = linkFocused
@@ -86,7 +94,7 @@ export function TaskEditDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {STATUS_OPTIONS.map((option) => (
+                {statusOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     <StatusBadge status={option.value} size="sm" />
                   </SelectItem>
@@ -110,10 +118,11 @@ export function TaskEditDialog({
           {/* Comment */}
           <div className="space-y-2">
             <Label>Comment</Label>
-            <Input
-              placeholder="Add a comment..."
+            <Textarea
+              placeholder="Add a comment... (supports multiple lines)"
               value={task.comment || ""}
               onChange={(e) => onUpdate(task.id, { comment: e.target.value })}
+              className="min-h-[80px] resize-y text-sm"
             />
           </div>
         </div>
